@@ -8,6 +8,7 @@ from sim.streams import make_stream
 
 def draw_world(seed, n_people, n_firms):
     """Every random number of part 1, drawn from the world stream in the paper's order."""
+    # rng: the world stream, used by this part only
     rng = make_stream(seed, "world")
     # z_points: one standard normal per person, turned into points
     z_points = rng.standard_normal(n_people)
@@ -42,13 +43,13 @@ def make_firms(n_firms):
 
 
 def make_headcounts(z_headcount, sigma_headcount, n_insiders, min_headcount):
-    """Workers of each firm: a lognormal share of all insiders, at least min_headcount, adding up to n_insiders."""
+    """Workers of each firm: a lognormal share of all insiders, at least min_headcount, adding up to n_insiders (the paper's L_j)."""
     if len(z_headcount) * min_headcount > n_insiders:
         raise ValueError(f"{n_insiders} insiders cannot give each of {len(z_headcount)} firms "
                          f"at least {min_headcount} workers")
-    # Raw size of each firm; only relative sizes matter, so no mean correction is needed
+    # raw_size: raw size of each firm; only relative sizes matter, so no mean correction is needed (the paper's tilde L_j)
     raw_size = np.exp(sigma_headcount * z_headcount)
-    # Each firm's share of the insiders, rounded to whole workers and never below min_headcount
+    # headcount: each firm's share of the insiders, rounded to whole workers and never below min_headcount
     headcount = np.maximum(min_headcount, np.round(n_insiders * raw_size / raw_size.sum())).astype(int)
     # The largest firm takes the rounding difference, so the headcounts add up to n_insiders exactly
     headcount[np.argmax(headcount)] += n_insiders - headcount.sum()
@@ -56,14 +57,14 @@ def make_headcounts(z_headcount, sigma_headcount, n_insiders, min_headcount):
 
 
 def make_book_values(z_book, headcount, avg_book_per_worker, sigma_book):
-    """Book value of each firm: its headcount times a capital per worker that averages avg_book_per_worker."""
+    """Book value of each firm: its headcount times a capital per worker that averages avg_book_per_worker (the paper's K_j)."""
     # Subtracting sigma_book^2 / 2 keeps the average capital per worker at avg_book_per_worker
     return avg_book_per_worker * headcount * np.exp(sigma_book * z_book - sigma_book**2 / 2)
 
 
 def assign_workers(shuffle, headcount, n_people):
     """Firm id of each person: the first people of the shuffle fill firm 1 up to its headcount, the next fill firm 2, and so on."""
-    # Everyone starts with firm id 0, which means no firm, since real firm ids start at 1
+    # firm_id: the firm of each person; everyone starts at 0, which means no firm, since real firm ids start at 1
     firm_id = np.zeros(n_people, dtype=int)
     # The first n_insiders people of the shuffle get jobs, firm by firm in id order
     firm_id[shuffle[:headcount.sum()]] = np.repeat(np.arange(1, len(headcount) + 1), headcount)
@@ -76,20 +77,23 @@ def is_insider(firm_id):
 
 
 def worker_points(points, firm_id, n_firms):
-    """Points held by the workers of each firm together, V^W_j."""
+    """Points held by the workers of each firm together (the paper's V^W_j)."""
     # Add each person's points to their firm's total; bin 0 collects the outsiders and is dropped
     return np.bincount(firm_id, weights=points, minlength=n_firms + 1)[1:]
 
 
 def summarize_points(points, firm_id, n_firms):
     """Spread of points for everyone, for all insiders and for the workers of each firm."""
+    # stats: the statistics to compute, in column order
     stats = ["count", "min", "max", "mean", "median", "std"]
+    # point_series: the points as a pandas Series
     point_series = pd.Series(points)
-    # One row for everyone and one for all insiders together
+    # table: one row for everyone and one for all insiders together
     table = {"everyone": point_series.agg(stats), "insiders": point_series[firm_id > 0].agg(stats)}
     # Then one row for the workers of each firm
     for j in range(1, n_firms + 1):
         table[f"firm {j}"] = point_series[firm_id == j].agg(stats)
+    # summary: one row per group and one column per statistic
     summary = pd.DataFrame(table).T
     # Counts are whole people
     summary["count"] = summary["count"].astype(int)
