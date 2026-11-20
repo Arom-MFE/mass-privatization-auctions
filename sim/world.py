@@ -26,10 +26,10 @@ def make_people(n_people):
     return pd.DataFrame({"person_id": np.arange(1, n_people + 1)})
 
 
-def make_points(z_points, sigma_points):
-    """Points of each person: a lognormal with mean one, exp(sigma_points z_points - sigma_points^2 / 2) (the paper's B_i)."""
-    # Subtracting sigma_points^2 / 2 keeps the average at one point per person
-    return np.exp(sigma_points * z_points - sigma_points**2 / 2)
+def make_points(z_points, sigma_points, avg_points):
+    """Points of each person: a lognormal with mean avg_points, avg_points exp(sigma_points z_points - sigma_points^2 / 2) (the paper's B_i)."""
+    # Subtracting sigma_points^2 / 2 keeps the average at avg_points points per person
+    return avg_points * np.exp(sigma_points * z_points - sigma_points**2 / 2)
 
 
 def count_insiders(n_people, insider_share):
