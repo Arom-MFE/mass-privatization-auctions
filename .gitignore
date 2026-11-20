@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Environments and editors
+.venv/
+venv/
+.idea/
+.DS_Store
+
+# Simulation output, rebuilt from each run's params.csv
+runs/
+
+CLAUDE.md/
